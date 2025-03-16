@@ -16,11 +16,11 @@ resource "aws_iam_role" "sagemaker_execution_role" {
   })
 }
 
+# Attach AmazonSageMakerFullAccess policy to the role
 resource "aws_iam_role_policy_attachment" "sagemaker_full_access" {
   role       = aws_iam_role.sagemaker_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess"
 }
-
 # Create an S3 bucket for SageMaker artifacts
 resource "aws_s3_bucket" "sagemaker_bucket" {
   bucket        = "sagemaker-test-sandbox-${random_id.suffix.hex}"
@@ -49,6 +49,16 @@ resource "aws_sagemaker_domain" "test_domain" {
   default_user_settings {
     execution_role = aws_iam_role.sagemaker_execution_role.arn
   }
+
+  # Add lifecycle configuration to ensure proper cleanup
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on = [
+    aws_route_table_association.rta,
+    aws_security_group.sagemaker_sg
+  ]
 }
 
 # Create a user profile
@@ -80,6 +90,11 @@ resource "aws_subnet" "sagemaker_subnet" {
 
   tags = {
     Name = "sagemaker-subnet"
+  }
+
+  # Allow Terraform to cleanly destroy this resource
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
